@@ -103,6 +103,9 @@ namespace BMI088
 
     void cBMI088::VerifyAccData()
     {
+        uint8_t erroeReg=0;
+        uint8_t data;
+        if(ReadReg)
         // TODO: 检查加速度数据是否有效，并更新 ACC_DATA_ERR。
     }
 
@@ -113,6 +116,10 @@ namespace BMI088
 
     void cBMI088::WriteReg(enum BMI088_SENSOR cs, uint8_t addr, uint8_t *data, uint8_t len)
     {
+        uint8_t tx[256];
+        tx[0]=addr&BMI088_SPI_WRITE_CODE;
+        memcpy(&tx[1],data,len);
+        HAL_GPIO_WritePin()//?????????????????????写到这里！！！！！！！！！！！
         // TODO: 根据 cs 拉低对应 GPIO 片选；按 SPI 写协议发送地址和数据，
         // 最后释放片选，并处理通信失败与必要的延时。
         (void)cs;
