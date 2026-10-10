@@ -7,6 +7,9 @@
 
 #include "math.hpp"
 #include <cstdint>
+#include<cmath>
+#include "main.h"
+
 
 /**
  * @brief PID模式

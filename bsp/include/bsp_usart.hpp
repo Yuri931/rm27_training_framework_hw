@@ -3,6 +3,7 @@
 
 #include "main.h"
 #include "stm32f4xx_hal_uart.h"
+#include"usart.h"
 
 enum USART_Mode
 {

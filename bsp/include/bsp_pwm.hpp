@@ -6,7 +6,8 @@
 #define RM26_H7_BSP_PWM_HPP
 
 #include "tim.h"
-
+#include"main.h"
+#include<cmath>
 /**
  * @brief  PWM初始化
  */

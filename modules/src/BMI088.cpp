@@ -104,22 +104,105 @@ namespace BMI088
     void cBMI088::VerifyAccData()
     {
         uint8_t erroeReg=0;
-        uint8_t data;
-        if(ReadReg)
+        uint8_t dataStatus=0;
+        if(ReadReg(BMI088_CS_ACC, ACC_ERR_REG_ADDR, &erroeReg, 1) != HAL_OK||ReadReg(BMI088_CS_ACC, ACC_STATUS_ADDR, &dataStatus, 1) != HAL_OK)
+        {
+            self_test.ACC_DATA_ERR = true;
+            return;
+        }
+        if((erroeReg&0x1D)==0)
+        {
+            self_test.ACC_DATA_ERR = true;
+            return;
+        }
+        if((dataStatus &0x80)==0)
+        {
+            self_test.ACC_DATA_ERR=true;
+        }   
+        if(self_test.ACC_DATA_ERR||!std::isfinite(acc_data.x)||!std::isfinite(acc_data.y)||!std::isfinite(acc_data.z))     
+        {
+            self_test.ACC_DATA_ERR=true;
+            return;
+        }
+        self_test.ACC_DATA_ERR=false;
         // TODO: 检查加速度数据是否有效，并更新 ACC_DATA_ERR。
     }
 
     void cBMI088::VerifyGyroData()
     {
+        uint8_t dataStatus=0;
+        if(ReadReg(BMI088_CS_GYRO, GYRO_INT_STAT_1_ADDR, &dataStatus, 1) != HAL_OK)
+        {
+            self_test.GYRO_DATA_ERR = true;
+            return;
+        }
+       
+        if((dataStatus&GYRO_DRDY_ON)==0)
+        {
+            self_test.GYRO_DATA_ERR=true;
+        }   
+       ReadGyroData(&gyro_data);
+       if(self_test.GYRO_DATA_ERR||!std::isfinite(gyro_data.x)||!std::isfinite(gyro_data.y)||!std::isfinite(gyro_data.z))     
+        {
+            self_test.GYRO_DATA_ERR=true;
+            return;
+        }
+        self_test.GYRO_DATA_ERR=false;
         // TODO: 检查角速度数据是否有效，并更新 GYRO_DATA_ERR。
+    }
+
+    static bool GetPin(BMI088_SENSOR cs, GPIO_TypeDef **port, uint16_t *pin)
+    {
+        if(port==nullptr||pin==nullptr)
+        {
+            return false;
+        }
+        switch(cs)
+        {
+            case BMI088_CS_ACC:
+            {
+                *port=BMI088_ACC_PORT;
+                *pin=BMI088_ACC_CS_PIN;
+                return true;
+            }
+            case BMI088_CS_GYRO:
+            {
+                *port=BMI088_GYRO_PORT;
+                *pin=BMI088_GYRO_CS_PIN;
+                return true;
+            }
+            default:
+                return false;
+        }
+
     }
 
     void cBMI088::WriteReg(enum BMI088_SENSOR cs, uint8_t addr, uint8_t *data, uint8_t len)
     {
-        uint8_t tx[256];
-        tx[0]=addr&BMI088_SPI_WRITE_CODE;
-        memcpy(&tx[1],data,len);
-        HAL_GPIO_WritePin()//?????????????????????写到这里！！！！！！！！！！！
+        if(data == nullptr || len == 0)
+        {
+            self_test.INIT_ERR = true; 
+            return;
+        }
+       GPIO_TypeDef *csPort=nullptr;
+
+         uint16_t csPin=0;
+         if(!GetPin(cs,&csPort,&csPin))
+         {
+            self_test.INIT_ERR = true; 
+            return;
+         }
+         uint8_t tx[256]={};
+         tx[0]=addr&BMI088_SPI_WRITE_CODE;
+         memcpy(&tx[1],data,len);
+         HAL_GPIO_WritePin(csPort,csPin,GPIO_PIN_RESET);
+         HAL_StatusTypeDef status=HAL_SPI_Transmit(&BMI088_SPI_HANDLE,tx,static_cast<uint16_t>(len+1),100);
+         HAL_GPIO_WritePin(csPort,csPin,GPIO_PIN_SET);
+         if(status!=HAL_OK)
+         {
+            self_test.INIT_ERR = true; 
+            
+         }
         // TODO: 根据 cs 拉低对应 GPIO 片选；按 SPI 写协议发送地址和数据，
         // 最后释放片选，并处理通信失败与必要的延时。
         (void)cs;
@@ -128,15 +211,76 @@ namespace BMI088
         (void)len;
     }
 
-    void cBMI088::ReadReg(enum BMI088_SENSOR cs, uint8_t addr, uint8_t *data, uint8_t len)
+   HAL_StatusTypeDef cBMI088::ReadReg(enum BMI088_SENSOR cs, uint8_t addr, uint8_t *data, uint8_t len)
     {
+        
+
+         if (data == nullptr || len == 0)
+         {
+             self_test.INIT_ERR = true;
+             return HAL_ERROR;
+          }
+
+         GPIO_TypeDef *csPort = nullptr;
+            uint16_t csPin = 0;
+
+         if (!GetPin(cs, &csPort, &csPin))
+          {
+             self_test.INIT_ERR = true;
+             memset(data, 0, len);
+             return HAL_ERROR;
+        }
+        const uint16_t extraBytes =
+        (cs == BMI088_CS_ACC) ? 2U : 1U;
+
+        const uint16_t transferSize =
+        static_cast<uint16_t>(len) + extraBytes;
+
+        uint8_t tx[257] = {};
+        uint8_t rx[257] = {};
+
+    
+        tx[0] = addr | BMI088_SPI_READ_CODE;
+
+    
+        for (uint16_t i = 1; i < transferSize; ++i)
+        {
+             tx[i] = 0xFF;
+        }
+
+        HAL_GPIO_WritePin(csPort, csPin, GPIO_PIN_RESET);
+
+        HAL_StatusTypeDef status =HAL_SPI_TransmitReceive(&BMI088_SPI_HANDLE, tx, rx,transferSize, 100);
+
+
+         HAL_GPIO_WritePin(csPort, csPin, GPIO_PIN_SET);
+
+        if (status != HAL_OK)
+         {
+            memset(data, 0, len);
+            self_test.INIT_ERR = true;
+
+             if (cs == BMI088_CS_ACC)
+            {
+                self_test.ACC_DATA_ERR = true;
+             }
+             else
+            {
+                 self_test.GYRO_DATA_ERR = true;
+            }
+
+        return status;
+        }
+
+    
+        const uint16_t dataOffset =(cs == BMI088_CS_ACC) ? 2U : 1U;
+
+        memcpy(data, &rx[dataOffset], len);
         // TODO: 根据 cs 拉低对应 GPIO 片选；按 SPI 读协议发送地址，
         // 丢弃加速度计返回的首个无效字节，读取 len 字节并释放片选。
         // 未实现前清零缓冲区，避免芯片 ID 校验读取未初始化数据。
-        (void)cs;
-        (void)addr;
-        if (data != nullptr)
-            for (uint8_t i = 0; i < len; ++i) data[i] = 0;
+       return HAL_OK;
+        
     }
 
     void cBMI088::Config()
@@ -212,6 +356,24 @@ namespace BMI088
 
     void cBMI088::ReadAccData(acc_data_t *data)
     {
+        if(data==nullptr)
+        {
+            return;
+        }
+        uint8_t bytes[ACC_XYZ_LEN]={};
+        if(ReadReg(BMI088_CS_ACC,ACC_X_LSB_ADDR,bytes,ACC_XYZ_LEN)!=HAL_OK)//ReadReg已处理过Dummy
+        {
+            data->x=data->y=data->z=0.0f;
+            self_test.ACC_DATA_ERR=true;
+            return;
+        }
+        const int16_t rawX=static_cast<int16_t>((bytes[1]<<8)|bytes[0]);
+        const int16_t rawY=static_cast<int16_t>((bytes[3]<<8)|bytes[2]);
+        const int16_t rawZ=static_cast<int16_t>((bytes[5]<<8)|bytes[4]);
+        data->x=rawX*IMU_ACCEL_6G_SEN;
+        data->y=rawY*IMU_ACCEL_6G_SEN;
+        data->z=rawZ*IMU_ACCEL_6G_SEN;
+        self_test.ACC_DATA_ERR=false;
         // TODO: 按 BMI088 加速度计 SPI 协议丢弃首个无效字节，拼接三轴有符号原始值，
         // 再按配置的量程换算为 m/s²，写入 data。
         if (data != nullptr) *data = {};
@@ -219,6 +381,29 @@ namespace BMI088
 
     void cBMI088::ReadGyroData(gyro_data_t *data)
     {
+        if (data == nullptr)
+        {
+            return;
+        }
+
+         uint8_t bytes[GYRO_XYZ_LEN] = {};
+
+        if (ReadReg(BMI088_CS_GYRO, GYRO_RATE_X_LSB_ADDR,bytes,GYRO_XYZ_LEN) != HAL_OK)
+         {
+            data->x = data->y = data->z = 0.0f;
+            self_test.GYRO_DATA_ERR = true;
+            return;
+         }
+
+         const int16_t rawX = static_cast<int16_t>((static_cast<uint16_t>(bytes[1]) << 8) | bytes[0]);
+        const int16_t rawY = static_cast<int16_t>((static_cast<uint16_t>(bytes[3]) << 8) | bytes[2]);
+        const int16_t rawZ = static_cast<int16_t>( (static_cast<uint16_t>(bytes[5]) << 8) | bytes[4]);
+
+         data->x = rawX * IMU_GYRO_2000_SEN - Gyro_offset[0];
+        data->y = rawY * IMU_GYRO_2000_SEN - Gyro_offset[1];
+        data->z = rawZ * IMU_GYRO_2000_SEN - Gyro_offset[2];
+
+        self_test.GYRO_DATA_ERR = false;
         // TODO: 读取并拼接陀螺仪三轴原始值，按配置量程换算为 rad/s，
         // 减去 Gyro_offset 后写入 data。
         if (data != nullptr) *data = {};
@@ -226,6 +411,23 @@ namespace BMI088
 
     void cBMI088::ReadAccTemperature(float *temp)
     {
+        if(temp==nullptr)
+        {
+            return;
+        }
+        uint8_t bytes[TEMP_LEN]={};
+        if(ReadReg(BMI088_CS_ACC,TEMP_MSB_ADDR,bytes,TEMP_LEN)!=HAL_OK)//ReadReg已处理过Dummy
+        {
+            *temp=0.0f;
+            self_test.TEMP_CTRL_ERR=true;
+            return;
+        }
+        uint16_t raw_Temp=(static_cast<uint16_t>(bytes[0])<<3)|(bytes[1]>>5);
+        if((raw_Temp&0x0400)!=0)
+        {
+            raw_Temp-=2048;
+        }
+        *temp=raw_Temp*TEMP_UNIT+TEMP_BIAS;
         // TODO: 丢弃加速度计读取时的首个无效字节，解析 11 位有符号温度并换算为摄氏度。
         if (temp != nullptr) *temp = 0.0f;
     }

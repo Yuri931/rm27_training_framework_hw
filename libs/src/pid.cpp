@@ -26,7 +26,7 @@ void PID::UpdateResult()
         pResult=kp*err[0];
         
         dResult=(err[0]-err[1])*kd;
-        result=Numeric::LimitABS(pResult+iResult+dResult,fabs::(maxOut));
+        result=Numeric::LimitABS(pResult+iResult+dResult,std::fabs(maxOut));
     }
     else if(mode==PID_DELTA)
     {
@@ -49,7 +49,7 @@ void PID::UpdateResult()
         dResult = 0.0f;
         result = 0.0f;
     }
-     }
+     
     // TODO: 按 mode 实现位置式或增量式 PID，并限制积分和最终输出。
     // 完成前始终保持零输出。
    // pResult = iResult = dResult = result = 0.0f;

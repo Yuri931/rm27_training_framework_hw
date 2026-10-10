@@ -36,7 +36,7 @@ void USART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, en
     return;
   }
   //检查参数
-  HAL_StatusTyeDef status;
+  HAL_StatusTypeDef status;
   switch(mode)
   {
     case USART_MODE_BLOCK:
@@ -54,7 +54,7 @@ void USART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, en
       status=HAL_UART_Transmit_IT(huart,pData,Size);
       break;
     }
-    default 
+    default: 
     {
       return;
     }
@@ -78,7 +78,7 @@ void USART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size)
     {
       return;
     }
-    if(HAL_USART_Receive_DMA(huart,pData,Size)!=HAL_OK)
+    if(HAL_UART_Receive_DMA(huart,pData,Size)!=HAL_OK)
     {
       Error_Handler();
     }

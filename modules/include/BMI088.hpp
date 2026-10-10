@@ -2,7 +2,10 @@
 #define BMI088_HPP
 
 #include "IMU.hpp"
-
+//#include "stm32f4xx_hal_gpio.h"//加入GPIO头文件
+#include"main.h"
+#include"spi.h"
+#include<cstring>
 namespace BMI088
 {
 /**
@@ -190,7 +193,7 @@ enum BMI088_SENSOR
          * @param data 数据
          * @param len 数据长度
          */
-        void ReadReg(enum BMI088_SENSOR cs, uint8_t addr, uint8_t *data, uint8_t len);
+        HAL_StatusTypeDef ReadReg(enum BMI088_SENSOR cs, uint8_t addr, uint8_t *data, uint8_t len);
 
         /**
          * @brief 写数据到寄存器

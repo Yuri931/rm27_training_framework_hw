@@ -6,6 +6,7 @@
 #define RM26_H7_IMU_HPP
 
 #include "pid.hpp"
+#include "main.h"//加入GPIO头文件
 
 /**
  * @struct acc_data_t
@@ -49,6 +50,7 @@ typedef struct imu_error_t
     bool ACC_DATA_ERR = true;          // 加速度计数据错误则为true
     bool GYRO_CHIP_ID_ERR = true;      // 陀螺仪ID错误则为true
     bool GYRO_DATA_ERR = true;         // 陀螺仪数据错误则为true
+    bool TEMP_DATA_ERR = true;         // 温度数据错误则为true
     bool INIT_ERR = true;              // 初始化错误则为true
     bool CALIBRATE_ERR = false;        // 标定错误则为true
     bool TEMP_CTRL_ERR = true;         // 温度控制错误则为true
