@@ -276,7 +276,7 @@ namespace BMI088
         const uint16_t dataOffset =(cs == BMI088_CS_ACC) ? 2U : 1U;
 
         memcpy(data, &rx[dataOffset], len);
-        // TODO: 根据 cs 拉低对应 GPIO 片选；按 SPI 读协议发送地址，
+        // TODO: 根据 cs 拉低对应 GPIO 片选；按 SPI 读协议发送地址，//这里将函数返回值改成了HAL_StatusTypeDef
         // 丢弃加速度计返回的首个无效字节，读取 len 字节并释放片选。
         // 未实现前清零缓冲区，避免芯片 ID 校验读取未初始化数据。
        return HAL_OK;
@@ -423,7 +423,7 @@ namespace BMI088
             return;
         }
         uint16_t raw_Temp=(static_cast<uint16_t>(bytes[0])<<3)|(bytes[1]>>5);
-        if((raw_Temp&0x0400)!=0)
+        if((raw_Temp&0x0400)!=0)          //是负的
         {
             raw_Temp-=2048;
         }
