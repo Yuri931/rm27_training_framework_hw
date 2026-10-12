@@ -60,6 +60,20 @@ namespace BMI088
 
     void cBMI088::TemperatureControl(float target_temp)
     {
+        float temp_now = 0.0f;
+        ReadAccTemperature(&temp_now);
+        if (!(temp_now > 0.0f && temp_now < 100.0f))
+         {
+            PWM_SetDutyRatio(&HEATING_RESISTANCE_TIM, 0.0f, HEATING_RESISTANCE_CHANNEL);
+            return;
+         }
+          TempPid.ref = target_temp;                     // IMU.hpp:66 的 TempPid
+        TempPid.fdb = temp_now;
+        TempPid.UpdateResult();
+         float duty = TempPid.result;
+        if (duty < 0.0f) duty = 0.0f;                  // 超过目标 → 不加热（不是反向制冷）
+         if (duty > 1.0f) duty = 1.0f;
+        PWM_SetDutyRatio(&HEATING_RESISTANCE_TIM, duty, HEATING_RESISTANCE_CHANNEL);
         // TODO: 温度读取完成后，用 TempPid 计算加热占空比并限制到 [0, 1]。
         // 未完成前保持加热关闭。
         (void)target_temp;
@@ -110,7 +124,7 @@ namespace BMI088
             self_test.ACC_DATA_ERR = true;
             return;
         }
-        if((erroeReg&0x1D)==0)
+        if((erroeReg&0x1D)!=0)
         {
             self_test.ACC_DATA_ERR = true;
             return;

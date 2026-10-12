@@ -65,6 +65,8 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/src/M2006.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/threads/src/alivethread.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/threads/src/imuthread.cpp    
+      ${CMAKE_CURRENT_SOURCE_DIR}/threads/src/controlthread.cpp              # 新增
 )# Add user sources here
 
 
@@ -74,6 +76,7 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/include
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/include
     ${CMAKE_CURRENT_SOURCE_DIR}/threads/include
+   
 )  
 # Add user defined include paths
 

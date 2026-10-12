@@ -25,9 +25,9 @@ enum BMI088_SENSOR
 
 #define BMI088_SPI_HANDLE hspi1
 #define BMI088_ACC_PORT GPIOA
-#define BMI088_ACC_CS_PIN GPIO_PIN_4
+#define BMI088_ACC_CS_PIN  GPIO_PIN_4
 #define BMI088_GYRO_PORT GPIOB
-#define BMI088_GYRO_CS_PIN GPIO_PIN_0
+#define BMI088_GYRO_CS_PIN     GPIO_PIN_0
 // TODO: 配置 BMI088 使用的 SPI 句柄，以及加速度计和陀螺仪各自的 GPIO 片选端口、引脚。
 
 #define HEATING_RESISTANCE_TIM htim10            //< 加热电阻定时器

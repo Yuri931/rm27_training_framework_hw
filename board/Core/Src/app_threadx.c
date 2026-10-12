@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "threads.hpp"  // 这个头文件会被 app_threadx.c（C 文件）包含并调用，而 Threads_Init 的定义在 .cpp 里（C++ 会改名），所以必须用 extern "C" 声明成 C 链接，否则链接时报 undefined reference
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,7 +62,7 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
   TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL*)memory_ptr;
 
   /* USER CODE BEGIN App_ThreadX_Init */
-  (void)byte_pool;
+  Threads_Init(byte_pool);
   /* USER CODE END App_ThreadX_Init */
 
   return ret;

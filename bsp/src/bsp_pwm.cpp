@@ -37,7 +37,13 @@ static uint32_t PWM_GetClockHz(TIM_HandleTypeDef *htim)
 void PWM_Init(void)
 {
     //怎么做？
-    
+     PWM_SetPeriod(&htim10, 0.001f);                 // 1kHz：ARR = 1e6 × 0.001 − 1 = 999
+    PWM_SetDutyRatio(&htim10, 0.0f, TIM_CHANNEL_1); // 先 0%，上电不加热
+    PWM_Start(&htim10, TIM_CHANNEL_1);              // 关键：不 Start 就没有波形
+
+    PWM_SetPeriod(&htim3, 0.02f);                   // 50Hz：ARR = 1e6 × 0.02 − 1 = 19999
+    PWM_SetDutyRatio(&htim3, 1.5f / 20.0f, TIM_CHANNEL_4);  // 1.5ms / 20ms = 中位
+    PWM_Start(&htim3, TIM_CHANNEL_4);
     // TODO: 根据实际使用的定时器和通道完成 PWM 初始化。
 }
 

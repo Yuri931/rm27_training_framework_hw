@@ -5,7 +5,7 @@
 
 BMI088::cBMI088 imu;
 
-void IMUThread_Entry(ULONG thread_input)
+void ImuThread_Entry(ULONG thread_input)
 {
     (void)thread_input;
      tx_thread_sleep(100);          // 上电稳定（手册要求上电后 ≥1ms 才可通信，这里给足 100ms）
@@ -18,7 +18,7 @@ void IMUThread_Entry(ULONG thread_input)
     imu.self_test.INIT_ERR=!init_ok;
     if(init_ok)
     {
-        tx_semaphore_put(&sem_init_ok)
+        tx_semaphore_put(&sem_init_ok);
     }
     for(;;)
     {
