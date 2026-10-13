@@ -60,7 +60,7 @@ void DJIMotorHandler::sendControlData()
     }
     if (CAN1_0x1FF_Exist)  {
          for (int i = 0; i < 4; i++)
-            PutCurrent(can1_send_data_1, i, DJIMotorList[0][i] ? DJIMotorList[0][i]->currentSet : 0);
+            PutCurrent(can1_send_data_1, i, DJIMotorList[0][i+4] ? DJIMotorList[0][i+4]->currentSet : 0);
         CAN_Transmit(&hcan1, 0x1FFU, can1_send_data_1, 8); /* 槽位 4~7 → can1_send_data_1，ID 0x1FF */
      }
     if (CAN2_0x200_Exist)  { 
@@ -71,8 +71,8 @@ void DJIMotorHandler::sendControlData()
     }
     if (CAN2_0x1FF_Exist)  { 
          for (int i = 0; i < 4; i++)
-            PutCurrent(can2_send_data_1, i, DJIMotorList[0][i] ? DJIMotorList[0][i]->currentSet : 0);
-        CAN_Transmit(&hcan2, 0x21FFU, can2_send_data_1, 8);
+            PutCurrent(can2_send_data_1, i, DJIMotorList[0][i+4] ? DJIMotorList[0][i+4]->currentSet : 0);
+        CAN_Transmit(&hcan2, 0x1FFU, can2_send_data_1, 8);
         /* can2_send_data_1，&hcan2，ID 0x1FF */ 
     }
     // TODO: 将各电机 currentSet 按大端序放入正确的 8 字节控制帧。

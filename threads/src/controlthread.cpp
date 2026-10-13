@@ -19,7 +19,7 @@ namespace
     DJIMotor::MotorControlModeType g_mode     = DJIMotor::POS_MODE; // 双环；纯速度环改 SPD_MODE
     volatile float g_speedSet = kSpeedTarget;                       //volatile每次查内存
     volatile float g_posSet   = kPosTarget;
-    volatile bool  g_enable   = true;
+    volatile bool  g_enable   = false;
     volatile bool  g_fault    = false;
     M2006 g_motor;
     DJIMotor *const g_motors[]={&g_motor};                       //便于拓展
