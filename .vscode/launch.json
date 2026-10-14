@@ -1,0 +1,51 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "下载并调试 (ST-Link + OpenOCD)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/board.elf",
+            "device": "STM32F407IG",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32f4x.cfg"
+            ],
+            "searchDir": [
+                "F:/EmbeddedTools/OpenOCD/OpenOCD/share/openocd/scripts"
+            ],
+            "openOCDLaunchCommands": [
+                "adapter speed 1800"
+            ],
+            "svdFile": "F:/EmbeddedTools/ozone/Config/Peripherals/STM32F407IG.svd",
+            "rtos": "ThreadX",
+            "runToEntryPoint": "main",
+            "preLaunchTask": "构建固件 (Debug)",
+            "showDevDebugOutput": "none"
+        },
+        {
+            "name": "挂载到正在运行的板子 (不烧录)",
+            "type": "cortex-debug",
+            "request": "attach",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/board.elf",
+            "device": "STM32F407IG",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32f4x.cfg"
+            ],
+            "searchDir": [
+                "F:/EmbeddedTools/OpenOCD/OpenOCD/share/openocd/scripts"
+            ],
+            "openOCDLaunchCommands": [
+                "adapter speed 1800"
+            ],
+            "svdFile": "F:/EmbeddedTools/ozone/Config/Peripherals/STM32F407IG.svd",
+            "rtos": "ThreadX",
+            "showDevDebugOutput": "none"
+        }
+    ]
+}

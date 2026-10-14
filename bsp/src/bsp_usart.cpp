@@ -22,7 +22,7 @@ void USART6_Init()
 
 void USART1_Init()
 {
-  if(HAL_UARTEx_ReceiveToIdle_DMA(&huart6,usart6RxBuffer,sizeof(usart6RxBuffer))!=HAL_OK)
+  if(HAL_UARTEx_ReceiveToIdle_DMA(&huart1,usart1RxBuffer,sizeof(usart1RxBuffer))!=HAL_OK)
   {
     Error_Handler();
   }

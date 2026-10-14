@@ -87,32 +87,36 @@ namespace BMI088
         ReadReg(BMI088_CS_ACC, ACC_CHIP_ID_ADDR, pRxData, 2); //< 读取加速度计chip id
         tx_thread_sleep(1);
         //< 如果chip id不等于预设值,则加速度计ID错误,初始化错误
-        if (pRxData[1] != ACC_CHIP_ID_VAL)
+        if (pRxData[0] != ACC_CHIP_ID_VAL)
         {
             self_test.ACC_CHIP_ID_ERR = true;
             self_test.INIT_ERR = true;
         }
-        else if (pRxData[1] == ACC_CHIP_ID_VAL)
+        else 
         {
             self_test.ACC_CHIP_ID_ERR = false;
         }
+
+        
     }
 
     void cBMI088::VerifyGyroChipID()
     {
-        uint8_t pRxData;                                                 //< 读取一个字节,chip id
-        ReadReg(BMI088_CS_GYRO, GYRO_CHIP_ID_ADDR, &pRxData, 1); //< 读取陀螺仪chip id
+        uint8_t pRxData[2];                                                 //< 读取一个字节,chip id
+        ReadReg(BMI088_CS_GYRO, GYRO_CHIP_ID_ADDR, pRxData, 2); //< 读取陀螺仪chip id
         tx_thread_sleep(1);
         //< 如果chip id不等于预设值,则陀螺仪ID错误,初始化错误
-        if (pRxData != GYRO_CHIP_ID_VAL)
+        if (pRxData[0] != GYRO_CHIP_ID_VAL)
         {
             self_test.GYRO_CHIP_ID_ERR = true;
             self_test.INIT_ERR = true;
         }
-        else if (pRxData == GYRO_CHIP_ID_VAL)
+        else
         {
             self_test.GYRO_CHIP_ID_ERR = false;
         }
+
+        tx_thread_sleep(1);
     }
 
     void cBMI088::VerifyAccData()
@@ -248,11 +252,12 @@ namespace BMI088
         (cs == BMI088_CS_ACC) ? 2U : 1U;
 
         const uint16_t transferSize =
-        static_cast<uint16_t>(len) + extraBytes;
+        static_cast<uint16_t>(len) + extraBytes;//
 
         uint8_t tx[257] = {};
         uint8_t rx[257] = {};
 
+        uint8_t tx1 = addr | BMI088_SPI_READ_CODE;
     
         tx[0] = addr | BMI088_SPI_READ_CODE;
 
@@ -264,7 +269,14 @@ namespace BMI088
 
         HAL_GPIO_WritePin(csPort, csPin, GPIO_PIN_RESET);
 
-        HAL_StatusTypeDef status =HAL_SPI_TransmitReceive(&BMI088_SPI_HANDLE, tx, rx,transferSize, 100);
+        // HAL_StatusTypeDef status =HAL_SPI_TransmitReceive(&BMI088_SPI_HANDLE, tx, rx,transferSize, 100);
+        HAL_StatusTypeDef status =
+         HAL_SPI_Transmit(&BMI088_SPI_HANDLE, &tx1, 1, 100);
+
+        if (status == HAL_OK)
+        {
+            status = HAL_SPI_Receive(&BMI088_SPI_HANDLE, rx, transferSize, 100);
+        }
 
 
          HAL_GPIO_WritePin(csPort, csPin, GPIO_PIN_SET);
@@ -300,6 +312,18 @@ namespace BMI088
     void cBMI088::Config()
     {
         tx_thread_sleep(10); //< 等待系统稳定
+
+       
+
+        // 加速度计上电默认 I2C 模式：先盲读一次切到 SPI，读到的值无效，必须丢弃
+        uint8_t dummy = 0;
+        ReadReg(BMI088_CS_ACC, ACC_CHIP_ID_ADDR, &dummy, 1);
+        tx_thread_sleep(1);
+        // 陀螺仪首次读也常返回无效值，一起丢掉，代价一次 SPI 传输
+        ReadReg(BMI088_CS_GYRO, GYRO_CHIP_ID_ADDR, &dummy, 1);
+        tx_thread_sleep(1);
+
+    // ↓ 下面保持原来的软复位 / 上电 / 量程流程不动
 
         /*-------------------------------------加速度计初始化-------------------------------------*/
         
@@ -390,7 +414,7 @@ namespace BMI088
         self_test.ACC_DATA_ERR=false;
         // TODO: 按 BMI088 加速度计 SPI 协议丢弃首个无效字节，拼接三轴有符号原始值，
         // 再按配置的量程换算为 m/s²，写入 data。
-        if (data != nullptr) *data = {};
+       
     }
 
     void cBMI088::ReadGyroData(gyro_data_t *data)
@@ -420,7 +444,7 @@ namespace BMI088
         self_test.GYRO_DATA_ERR = false;
         // TODO: 读取并拼接陀螺仪三轴原始值，按配置量程换算为 rad/s，
         // 减去 Gyro_offset 后写入 data。
-        if (data != nullptr) *data = {};
+        
     }
 
     void cBMI088::ReadAccTemperature(float *temp)
@@ -443,7 +467,7 @@ namespace BMI088
         }
         *temp=raw_Temp*TEMP_UNIT+TEMP_BIAS;
         // TODO: 丢弃加速度计读取时的首个无效字节，解析 11 位有符号温度并换算为摄氏度。
-        if (temp != nullptr) *temp = 0.0f;
+        
     }
 
 }
