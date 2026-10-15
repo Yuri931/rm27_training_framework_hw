@@ -19,7 +19,7 @@ namespace
     DJIMotor::MotorControlModeType g_mode     = DJIMotor::POS_MODE; // 双环；纯速度环改 SPD_MODE
     volatile float g_speedSet = kSpeedTarget;                       //volatile每次查内存
     volatile float g_posSet   = kPosTarget;
-    volatile bool  g_enable   = false;
+    volatile bool  g_enable   = true;
     volatile bool  g_fault    = false;
     M2006 g_motor;
     DJIMotor *const g_motors[]={&g_motor};                       //便于拓展
@@ -59,7 +59,7 @@ void MotorThread_Entry(ULONG thread_input)
 
         const DJIMotor::MotorFeedBack &fb=g_motor.motorFeedback;
         const bool dataOk=std::isfinite(fb.speedFdb)&&std::isfinite(fb.positionFdb)&&std::fabs(fb.speedFdb)<kSpeedLimit&&fb.temperatureFdb<kTempLimit;
-        const bool linkOk=(g_motor.MotorState==DJIMotor::MOTOR_ONLINE)&&(lostCnt==0);
+        const bool linkOk=(g_motor.MotorState==DJIMotor::MOTOR_ONLINE);//先不判断&&(lostCnt==0)，给点抖动空间;
 
         if(dataOk&&linkOk)
         {

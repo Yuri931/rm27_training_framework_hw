@@ -22,6 +22,17 @@ static bool TakeHeartbeat(TX_SEMAPHORE *sem)
     return got;
 }
 
+//建线程失败就在这里停下：红蓝一起亮，别静默跳过（池子太小的话三个线程会一个都不建，板子看起来像死机）
+static void Threads_InitFailed()
+{
+    LED_Set(LED_Color::Red, true);
+    LED_Set(LED_Color::Blue, true);
+    __disable_irq();
+    for(;;)
+    {
+    }
+}
+
 void Threads_Init(TX_BYTE_POOL *byte_pool)
 {
     VOID *stack=TX_NULL;
@@ -29,19 +40,23 @@ void Threads_Init(TX_BYTE_POOL *byte_pool)
     tx_semaphore_create(&sem_imu,(CHAR*)"sem_imu",0);
     tx_semaphore_create(&sem_motor,(CHAR*)"sem_motor",0);
 
-    if(tx_byte_allocate(byte_pool,&stack,1024,TX_NO_WAIT)==TX_SUCCESS)
+    if(tx_byte_allocate(byte_pool,&stack,1024,TX_NO_WAIT)!=TX_SUCCESS)
     {
-        tx_thread_create(&alive_thread,(CHAR*)"alive_thread",AliveThread_Entry,0,stack,1024,10,10,TX_NO_TIME_SLICE,TX_AUTO_START);
-                                                                       //抢占优先级怎么定
+        Threads_InitFailed();
     }
-    if(tx_byte_allocate(byte_pool,&stack,2048,TX_NO_WAIT)==TX_SUCCESS)
+    tx_thread_create(&alive_thread,(CHAR*)"alive_thread",AliveThread_Entry,0,stack,1024,10,10,TX_NO_TIME_SLICE,TX_AUTO_START);
+                                                                   //抢占优先级怎么定
+    if(tx_byte_allocate(byte_pool,&stack,2048,TX_NO_WAIT)!=TX_SUCCESS)
     {
-        tx_thread_create(&imu_thread,(CHAR*)"imu_thread",ImuThread_Entry,0,stack,2048,5,5,TX_NO_TIME_SLICE,TX_AUTO_START);
+        Threads_InitFailed();
     }
-    if(tx_byte_allocate(byte_pool,&stack,2048,TX_NO_WAIT)==TX_SUCCESS)
+    tx_thread_create(&imu_thread,(CHAR*)"imu_thread",ImuThread_Entry,0,stack,2048,5,5,TX_NO_TIME_SLICE,TX_AUTO_START);
+
+    if(tx_byte_allocate(byte_pool,&stack,2048,TX_NO_WAIT)!=TX_SUCCESS)
     {
-        tx_thread_create(&motor_thread,(CHAR*)"motor_thread",MotorThread_Entry,0,stack,2048,6,6,TX_NO_TIME_SLICE,TX_AUTO_START);
+        Threads_InitFailed();
     }
+    tx_thread_create(&motor_thread,(CHAR*)"motor_thread",MotorThread_Entry,0,stack,2048,6,6,TX_NO_TIME_SLICE,TX_AUTO_START);
 }
 
 void AliveThread_Entry(ULONG thread_input)

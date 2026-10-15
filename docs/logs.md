@@ -1,4 +1,4 @@
-灯效信息：
+##0.灯效信息：
 1. 颜色分辨"谁出问题"，频率分辨"严重程度"：正常 = 慢闪心跳，异常 = 快闪，致命 = 常亮。
 
 初始化没过：蓝灯常亮
@@ -56,7 +56,7 @@ RawRead(false, 0x00, dbg_gyro2, 4);
 
 
 陀螺仪：全是 0xFF = MISO 一直是空闲高电平，没有任何芯片在驱动它
-
+9
 gyro1 = 00 FF FF FF
 gyro2 = FF FF FF
 
@@ -64,6 +64,39 @@ gyro2 = FF FF FF
 
 先做这个实验：把 SPI 时钟降下来
 
-你的 SPI_BAUDRATEPRESCALER_16 = 168/16 = 10.5 MHz，超了 BMI088 手册的 10 MHz 上限。"响应稳定地晚一个字节"和"某个 die 完全不响应"都符合超频跑在边缘上的表现——这可以同时解释你这两个现象。
+（假的，用的是pclk，为84Hz不超）你的 SPI_BAUDRATEPRESCALER_16 = 168/16 = 10.5 MHz，超了 BMI088 手册的 10 MHz 上限。"响应稳定地晚一个字节"和"某个 die 完全不响应"都符合超频跑在边缘上的表现——这可以同时解释你这两个现象。
 
-频率168/16>10超时了，改动：hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+频率168/16>10超时了，改动：hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;、
+
+##3.问题：线程进不了
+原因：generate code覆盖了原来改过的宏，后内存池重新被改成1024；
+解决：0.（无效）board/AZURE_RTOS/App/app_azure_rtos_config.h — 在 USER CODE BEGIN EC 用户区里覆盖宏（CubeMX 再生成也不会被冲掉）：
+        #undef  TX_APP_MEM_POOL_SIZE
+        #define TX_APP_MEM_POOL_SIZE    (16*1024)
+2. threads/src/alivethread.cpp — 分配失败不再静默跳过，改成 Threads_InitFailed()：亮红+蓝灯并 __disable_irq() 停下，下次这种问题直接通过灯效显示。
+3. 改成*8：board/AZURE_RTOS/App/app_azure_rtos_config.h：#defineTX_APP_MEM_POOL_SIZE  1024*8
+
+##4alivethread取不了心跳
+原因：init_ok因为&tx_semaphore_get(&sem_init_ok,TX_NO_WAIT)！=success不通过
+取出13，表示TX_NO_INSTANCE，说明这个通知还没有发出。没有put过，因为imu初始化没通过(上面的问题没解决导致的)
+核心原因就是：在 alivethread 执行到这一行时，负责 tx_semaphore_put(&sem_init_ok) 的那段代码还没有运行，或者运行失败了。
+
+##4.电机不动，controlthread也进不了
+    原因：忘记controlthread里面volatile bool  g_enable   = false;，要在调试器里手动 ControlThread::SetEnable(true)，或者先把目标改成 0。没有改动
+
+    查找发现： 已手动将g_enalbe改成true，可以进controlthread的entry，但是g_motor.MotorState为OFF LINE，应该是因为M2006::MotorStateTypedef M2006::AliveCheck()里面AliveFlag == Pre_AliveFlag所以返回OFF_LINE的状态，并且 // TODO: MotorState = MOTOR_OFFLINE；忘删代码了。。。
+   
+    不行，改了还是OFF_LINE，watch发现 g_motor.AliveFlag一直都是0，
+
+    IER = 2 接收中断使能没问题
+    断点发现不会进can回调，ESR=16253015，TSR=2181038080，RF0R=0，表示发送错误计数器溢出而进入了Bus-Off状态， 接收 FIFO 空的
+    逐次读发现ESR₁ = 8918979 = 0x008817C3，一帧一帧发、每帧都失败
+    是板子物理层面的问题，发现c板没接电源（笑
+
+    接上电源后依然进不了回调，断开C板和CAN的连接依然esr=8912979,tsr=469762057,rf0r=0，查配置，发现引脚配错了，CAN1 的发送引脚配成了 PA12，但 C 板上 CAN1_TX 实际接的是 PD1。
+    改完之后可以进can回调，MotorState终于ONLINE
+    
+    但是电机依然不转，可能是onlineCut一直积累不到kArmTicks，onlineCut有积累但一段时间后会被清零。所以，在M2006.hpp AliveCheck()增加防抖，连续 100 拍（≈100ms）都没帧才判定为真掉线，同时 controlthread.cpp const bool linkOk=(g_motor.MotorState==DJIMotor::MOTOR_ONLINE);//先不判断&&(lostCnt==0)，给点抖动空间;
+
+    改动完后电机可以转动，但是大约3s又停下了。
+

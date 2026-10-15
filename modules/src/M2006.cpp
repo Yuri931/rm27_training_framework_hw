@@ -58,19 +58,38 @@ void M2006::setOutput()
 
 M2006::MotorStateTypedef M2006::AliveCheck()
 {
-    if(AliveFlag != Pre_AliveFlag)
+
+      static uint16_t lostCnt = 0;        // 连续多少拍没收到新帧（只有 g_motor 一个实例，局部静态够用）
+
+    if(AliveFlag != Pre_AliveFlag)      // 这一拍有新帧
     {
-        MotorState = MOTOR_ONLINE;
         Pre_AliveFlag = AliveFlag;
-        return MotorState;
+        lostCnt = 0;
+        MotorState = MOTOR_ONLINE;
     }
-    else
+    else if(lostCnt < 100)              // 没新帧但还没超时：保持上一次的状态，不急着判掉线
+    {
+        lostCnt++;
+    }
+    else                                // 连续 100 拍（≈100ms）都没帧 → 真掉线
     {
         MotorState = MOTOR_OFFLINE;
-        return MotorState;
     }
+    return MotorState;
+
+    // if(AliveFlag != Pre_AliveFlag)      原来的写法检查太严格了
+    // {
+    //     MotorState = MOTOR_ONLINE;
+    //     Pre_AliveFlag = AliveFlag;
+    //     return MotorState;
+    // }
+    // else
+    // {
+    //     MotorState = MOTOR_OFFLINE;
+    //     return MotorState;
+    // }                                         
     
     // TODO: 比较 AliveFlag 与 Pre_AliveFlag，更新在线状态并保存本次计数。
-    MotorState = MOTOR_OFFLINE;
+
     return MotorState;
 }
