@@ -10,6 +10,10 @@ imu丢失，蓝灯快闪
 
  注意controlthread里面volatile bool  g_enable   = false;，要在调试器里手动 ControlThread::SetEnable(true)，或者先把目标改成 0。
 
+ 单位：加速度 imu.acc_data.x/y/z —— 单位 m/s²
+ 陀螺仪 imu.gyro_data.x/y/z —— 单位 rad/s
+ 温度 imu.acc_data.temperature —— 单位 °C
+
  ##1.找不到BMI088.hpp文件
  最可能的原因：IDE 把 board/ 当成了工程根目录。工程里有两个 CMakeLists：
 
@@ -99,4 +103,57 @@ gyro2 = FF FF FF
     但是电机依然不转，可能是onlineCut一直积累不到kArmTicks，onlineCut有积累但一段时间后会被清零。所以，在M2006.hpp AliveCheck()增加防抖，连续 100 拍（≈100ms）都没帧才判定为真掉线，同时 controlthread.cpp const bool linkOk=(g_motor.MotorState==DJIMotor::MOTOR_ONLINE);//先不判断&&(lostCnt==0)，给点抖动空间;
 
     改动完后电机可以转动，但是大约3s又停下了。
+
+    观测发现positionFdb=1.7左右，并没有达到设定值，current=135是数值是正常输出环路可以正常输出，但是电机不动，用手拨动电机，fdb变化，但很小。
+    可能是因为：35 大约是 0.13A。这么小的电流克服不了齿轮箱的静摩擦,电机就停在半路。现在是纯 P 控制没有积分:电流正比于误差。电机一旦停下,误差就定格在 1.42,电流就定格在 135。
+
+    先尝试给速度环加积分， maxCurrent = 3000; speedPid.Tuning(10.0f, 5.0f, 0.0f);
+    现象是电机很快动起来，但是一直在两个方向快速转不会停下来，是不是一直没有达到设定位置，积分好像给得太过了，想暂定看参数电机一下子往一个方向快速好几圈转动然后停下，现在positionFdb大约是3.3。应该是两处同积分能占的额度太大。
+
+    下面先调速度环,但是现在调试平台用不了，先放一下
+
+
+接着调试IMU反馈读取问题
+
+数据手册 6.1.2 节原文：
+
+▎ "to read the accelerometer values in SPI mode, the user has to read 7 bytes, starting from address 0x12 (ACC data). From these bytes the user must discard the first byte and finds the acceleration information in byte #2 - #7."
+
+6.1.1 节（陀螺仪）：
+
+可能原因：▎ "For single byte read as well as write operations, 16-bit protocols are used... Bit #8-15: when in read mode, these are the data SDO, which are read from the address."
+▎ "This dummy byte procedure does not apply to the gyroscope part."
+
+也就是：加速度计丢弃 1 个、陀螺仪丢弃 0 个。而 BMI088.cpp:251-252 和 :302 写的是加速度计丢 2 个、陀螺仪丢 1 个——两个都多丢了 1 个字节。
+
+为什么是 1 而不是 2：ReadReg 是"先 HAL_SPI_Transmit 发地址，再 HAL_SPI_Receive 收数据"的两段式。HAL_SPI_Transmit 结束时会 SPI_EndRxTxTransaction（等 BSY 清零）然后 __HAL_SPI_CLEAR_OVRFLAG（读 DR + SR），发地址那一个字节周期收到的数据已经被 HAL 清掉了，不会进 rx[]。所以 rx[0] 就是"地址之后的第一字节"：
+
+不对实践表明原来的rx就是从下标2开始有地址的，
+
+现在不知道怎么acc地址就读得没问题了（
+
+检查发现是引脚问题，片选确实没问题，但是 MOSI 接错引脚了，将PA7配成了PB5（当时是cubeMX默认的），所以说IMU 从来没有收到过任何一条指令 —— 寄存器地址根本没送到芯片手里,它不知道你要读哪个寄存器,吐回来的自然都是垃圾。"陀螺仪全是 0xFF = MISO 一直是空闲高电平,没有任何芯片在驱动它" —— 同一个原因。片选拉低了,但芯片从没收到过有效地址,凭什么驱动 MISO。加速度计一直停在上电默认的挂起模式
+
+泪目了就是这个问题，补上前面丢字节的，实际测得是：const uint16_t extraBytes =
+        (cs == BMI088_CS_ACC) ? 1U : 0U;
+
+现在初始化没问题，但是acc，gyor接收到的值全是0，可能是:配置根本没写进去，BMI088 的两颗 die 上电默认都是挂起(suspend)模式:
+接下来用这段确认配置有没有真正写进芯片，看写进去的和读出来的是否一致
+    /* ---- 临时诊断:Config 之后立刻回读,看配置到底写进去没有 ---- */
+    imu.ReadReg(BMI088::BMI088_CS_ACC,  0x7C, &cfg_readback[0], 1);
+    imu.ReadReg(BMI088::BMI088_CS_ACC,  0x7D, &cfg_readback[1], 1);
+    imu.ReadReg(BMI088::BMI088_CS_ACC,  0x40, &cfg_readback[2], 1);
+    imu.ReadReg(BMI088::BMI088_CS_ACC,  0x41, &cfg_readback[3], 1);
+    imu.ReadReg(BMI088::BMI088_CS_ACC,  0x03, &cfg_readback[4], 1);
+    imu.ReadReg(BMI088::BMI088_CS_ACC,  0x00, &cfg_readback[5], 1);
+    imu.ReadReg(BMI088::BMI088_CS_GYRO, 0x11, &cfg_readback[6], 1);
+    imu.ReadReg(BMI088::BMI088_CS_GYRO, 0x0F, &cfg_readback[7], 1);
+    imu.ReadReg(BMI088::BMI088_CS_GYRO, 0x10, &cfg_readback[8], 1);
+    imu.ReadReg(BMI088::BMI088_CS_GYRO, 0x00, &cfg_readback[9], 1);
+
+    读到：0 0 171 1 16 30 0 0 129 15 ，ACC 第二个电源开关 ✗ 没写进去（期望0x04）
+    acc电源没开，因为BMI088 的加速度计特性:软复位之后,紧接的第一条操作会被芯片忽略，打开电源的代码被丢弃了，在BMI088.cpp void cBMI088::Config() 软启后加入
+    ReadReg(BMI088_CS_ACC, ACC_CHIP_ID_ADDR, &dummy, 1);//先丢一个
+        tx_thread_sleep(1);
+
 

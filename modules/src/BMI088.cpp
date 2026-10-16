@@ -249,7 +249,7 @@ namespace BMI088
              return HAL_ERROR;
         }
         const uint16_t extraBytes =
-        (cs == BMI088_CS_ACC) ? 2U : 1U;
+        (cs == BMI088_CS_ACC) ? 1U : 0U;                                    //尝试改动
 
         const uint16_t transferSize =
         static_cast<uint16_t>(len) + extraBytes;//
@@ -299,7 +299,7 @@ namespace BMI088
         }
 
     
-        const uint16_t dataOffset =(cs == BMI088_CS_ACC) ? 2U : 1U;
+        const uint16_t dataOffset =(cs == BMI088_CS_ACC) ? 1U : 0U;
 
         memcpy(data, &rx[dataOffset], len);
         // TODO: 根据 cs 拉低对应 GPIO 片选；按 SPI 读协议发送地址，//这里将函数返回值改成了HAL_StatusTypeDef
@@ -332,7 +332,10 @@ namespace BMI088
         pTxData = ACC_SOFTRESET_VAL;
         WriteReg(BMI088_CS_ACC, ACC_SOFTRESET_ADDR, &pTxData, 1);
         tx_thread_sleep(100); //< 延时100ms,重启需要时间
+        ReadReg(BMI088_CS_ACC, ACC_CHIP_ID_ADDR, &dummy, 1);//先丢一个
+        tx_thread_sleep(1);
 
+    
         //< 打开加速度计电源
         pTxData = ACC_PWR_CTRL_ON;
         WriteReg(BMI088_CS_ACC, ACC_PWR_CTRL_ADDR, &pTxData, 1);

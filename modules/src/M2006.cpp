@@ -3,15 +3,15 @@
 M2006::M2006()
 {
     gearBox = GearBox_M2006;
-    maxCurrent = 1000;                 //先给1A跑通再改成3A
-    speedPid.Tuning(10.0f, 0.0f, 0.0f); 
+    maxCurrent = 3000;                 //先给1A跑通再改成3A
+    speedPid.Tuning(10.0f, 1.0f, 0.0f); 
     speedPid.maxOut= static_cast<float>(maxCurrent); 
     speedPid.maxIOut= static_cast<float>(maxCurrent); 
     speedPid.Clear();
 
     positionPid.Tuning(10.0f, 0.0f, 0.0f);
     positionPid.maxOut= 40.0f;           //转速比额定小一点
-    positionPid.maxIOut= 0.0f;
+    positionPid.maxIOut= 40.0f;
     positionPid.Clear();
 
     // TODO: 根据 M2006 手册设置减速比、允许电流和速度/位置环 PID 参数。

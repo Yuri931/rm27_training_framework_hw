@@ -5,6 +5,7 @@
 #include"bsp.hpp"
 #include"can.h"
 #include<cmath>
+M2006 g_motor;
 namespace
 {
     //参数
@@ -16,12 +17,12 @@ namespace
     constexpr uint32_t kArmTicks    = 100;     // 连续在线 100 ms 才允许输出               看can的通信频率
     constexpr uint32_t kLostTicks   = 50;      // 连续 50 ms 无新帧 → 停机                 
 
-    DJIMotor::MotorControlModeType g_mode     = DJIMotor::POS_MODE; // 双环；纯速度环改 SPD_MODE
+    DJIMotor::MotorControlModeType g_mode     = DJIMotor::SPD_MODE; // 双环；纯速度环改 SPD_MODE
     volatile float g_speedSet = kSpeedTarget;                       //volatile每次查内存
     volatile float g_posSet   = kPosTarget;
     volatile bool  g_enable   = true;
     volatile bool  g_fault    = false;
-    M2006 g_motor;
+   
     DJIMotor *const g_motors[]={&g_motor};                       //便于拓展
 
 }
